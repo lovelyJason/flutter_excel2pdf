@@ -4,6 +4,9 @@
 
 <img width="360" alt="image" src="https://github.com/lovelyJason/flutter_demo/assets/50656459/a4846602-c610-4ed3-ba45-99de462149a8">
 
+运行过程：
+![c](https://github.com/lovelyJason/flutter_demo/assets/50656459/ef340df2-11e2-4b9f-8485-ccd8312cf663)
+
 
 ## 开始
 
