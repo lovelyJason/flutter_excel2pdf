@@ -17,9 +17,9 @@ import 'package:desktop_window/desktop_window.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-    await window_size.DesktopWindow.setWindowSize(Size(360, 300));
-    await window_size.DesktopWindow.setMinWindowSize(Size(360, 300));
-    await window_size.DesktopWindow.setMaxWindowSize(Size(360, 300));
+    await window_size.DesktopWindow.setWindowSize(Size(400, 380));
+    await window_size.DesktopWindow.setMinWindowSize(Size(400, 380));
+    await window_size.DesktopWindow.setMaxWindowSize(Size(4000, 380));
   }
   runApp(MyApp());
 }
@@ -58,10 +58,11 @@ class _HomePageState extends State<HomePage> {
       Content content = Content();
       // 生成 Word 文档，根据传入的 Content 对象进行替换占位符
       content
-        ..add(TextContent('docname', 'Simple docname'))
+        ..add(TextContent('docname', 'Jason Huang'))
         ..add(TextContent("passport", "Passport NE0323 4456673"))
         ..add(TextContent('{{G-header}}', 'replacement1'))
-        ..add(TextContent('{H-header}', 'replacement2'));
+        ..add(TextContent('{H-header}', 'replacement2'))
+        ..add(TextContent('header', 'replacement2'));
 
       final docGenerated = await docx.generate(content);
       print('docGenerated的类型是：${docGenerated.runtimeType}');
@@ -144,7 +145,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> generateWordDocuments(
-      List<List<dynamic>> excelData, List<int> templateBytes) async {
+      List<List<dynamic>> excelData,
+      List<int> templateBytes, String prefix) async {
     try {
       // 获取表头行数据，，从索引6，第7列，G开始获取这一行中所有后续列的值。这意味着headers变量将包含第7列及其之后所有列的表头。
       var headers = excelData[0].sublist(6);
@@ -156,9 +158,13 @@ class _HomePageState extends State<HomePage> {
         var templateData = <String, dynamic>{};
 
         headers.asMap().forEach((index, header) {
+          // 一个cell对象，包含了单元格的内容以及其他属性，如样式、对齐方式等。以下是对问题的详细解答：
+          // print(header.value.toString());
+          // print(data[index].toString());
           var columnLetter = String.fromCharCode(71 + index);
-          templateData['${columnLetter}-header'] = header;
-          templateData['${columnLetter}-content'] = data[index];
+          templateData['${columnLetter}-header'] = header?.value?.toString();
+          templateData['${columnLetter}-content'] =
+              data[index]?.value?.toString();
         });
 
         var docx =
@@ -176,7 +182,7 @@ class _HomePageState extends State<HomePage> {
           var modifiableBuffer =
               List<int>.from(generatedDocBuffer); // Create a modifiable list
           var outputFilePath =
-              path.join(outputDir.path, 'result_${i + 1}.docx');
+              path.join(outputDir.path, 'result_${prefix}_${i + 1}.docx');
           File(outputFilePath).writeAsBytesSync(modifiableBuffer);
           print('Word 文件已成功生成: $outputFilePath');
         } else {
@@ -215,18 +221,20 @@ class _HomePageState extends State<HomePage> {
       var filePath = result.files.single.path;
       if (filePath != null) {
         try {
+          String fileName = path.basenameWithoutExtension(filePath);
+          print('filename: $fileName');
           var excelData = await readExcel(filePath);
           var templateContent = await rootBundle.load('assets/template.docx');
           // buffer.asUint8List()不可修改。您可以通过将其转换为普通列表来修改它
           var templateBytes = templateContent.buffer.asUint8List().toList();
-          await generateWordDocuments(excelData, templateBytes);
+          await generateWordDocuments(excelData, templateBytes, fileName);
           var outputFiles =
               outputDir.listSync().map((file) => file.path).join('\n');
           setState(() {
             fileContent = outputFiles;
           });
 
-          showMessageBox(context, '老板，已为您处理完成\n已经放到了文档目录的ayesha目录');
+          showMessageBox(context, '老板，已为您处理完成\n已经放到了桌面下的ayesha目录');
         } catch (e, stackTrace) {
           print('发生错误: $e');
           showMessageBox(context, '发生错误: $e, $stackTrace');
@@ -235,11 +243,54 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  void showUsageDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('使用说明', style: TextStyle(fontSize: 16)),
+        content: Text(
+          '1. 点击"选择Excel"按钮选择一个Excel文件,目前只能单个文件。\n'
+          '2. 系统会自动读取Excel文件并生成对应的Word文档，理论上任意的excel都可以处理为word,自定义模板格式即可。\n'
+          '3. 生成的文档会保存在桌面的"ayesha"目录中。\n'
+          '4. 如果遇到任何问题，请联系开发者。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('确认'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> downloadTemplate() async {
+    try {
+      final templateContent = await rootBundle.load('assets/template.docx');
+      final templateBytes = templateContent.buffer.asUint8List();
+      final desktopDir = await getDesktopPath();
+      final templateFile = File(path.join(desktopDir.path, 'template.docx'));
+      await templateFile.writeAsBytes(templateBytes);
+      showMessageBox(context, '模板文件已成功下载到桌面');
+    } catch (e) {
+      showMessageBox(context, '下载模板文件时发生错误: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('flutter_excel2pdf by jasonhuagn QQ315945659'),
+        title: Text(
+          'Excel2PDF by jasonhuagn QQ315945659',
+          style: TextStyle(fontSize: 12),
+        ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.info_outline),
+            onPressed: showUsageDialog,
+          ),
+        ],
       ),
       body: Center(
         child: Column(
@@ -260,6 +311,16 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       ),
+      floatingActionButton: Container(
+        margin: EdgeInsets.only(bottom: 30.0), // 调整距离底部的距离
+        child: FloatingActionButton.extended(
+          onPressed: downloadTemplate,
+          tooltip: '下载模板',
+          label: Text('下载模板'),
+          icon: Icon(Icons.download),
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
     );
   }
 }
