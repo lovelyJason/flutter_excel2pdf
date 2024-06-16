@@ -1,6 +1,9 @@
 # 介绍
 
-这是一个flutter项目， 本项目是做一个excel转换到word/pdf的功能，作为flutter入门项目，会介绍简单的入门知识（不包括安装，环境配置，这是一个比较麻烦的事）
+这是一个flutter项目， 本项目本来是做一个excel转换到word/pdf的功能，作为flutter入门项目，会介绍简单的入门知识（不包括安装，环境配置，这是一个比较麻烦的事）
+
+<img width="360" alt="image" src="https://github.com/lovelyJason/flutter_demo/assets/50656459/a4846602-c610-4ed3-ba45-99de462149a8">
+
 
 ## 开始
 
