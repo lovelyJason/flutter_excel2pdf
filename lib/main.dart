@@ -144,8 +144,7 @@ class _HomePageState extends State<HomePage> {
     return rows;
   }
 
-  Future<void> generateWordDocuments(
-      List<List<dynamic>> excelData,
+  Future<void> generateWordDocuments(List<List<dynamic>> excelData,
       List<int> templateBytes, String prefix) async {
     try {
       // 获取表头行数据，，从索引6，第7列，G开始获取这一行中所有后续列的值。这意味着headers变量将包含第7列及其之后所有列的表头。
@@ -153,42 +152,73 @@ class _HomePageState extends State<HomePage> {
       // excelData.sublist(1)：从Excel数据的第2行（索引为1）开始，获取所有后续行的数据。这表示去掉第一行表头，保留实际数据行。
       var rows = excelData.sublist(1).map((row) => row.sublist(6)).toList();
 
-      for (int i = 0; i < rows.length; i++) {
-        var data = rows[i];
-        var templateData = <String, dynamic>{};
+      List<double> sums = List<double>.filled(headers.length, 0);
+      List<int> counts = List<int>.filled(headers.length, 0);
+      List<List<String>> nonNumericContents =
+          List.generate(headers.length, (_) => []);
 
-        headers.asMap().forEach((index, header) {
-          // 一个cell对象，包含了单元格的内容以及其他属性，如样式、对齐方式等。以下是对问题的详细解答：
-          // print(header.value.toString());
-          // print(data[index].toString());
-          var columnLetter = String.fromCharCode(71 + index);
-          templateData['${columnLetter}-header'] = header?.value?.toString();
-          templateData['${columnLetter}-content'] =
-              data[index]?.value?.toString();
+      // 遍历每一行的数据
+      for (var data in rows) {
+        data.asMap().forEach((index, cell) {
+          var cellValue = cell?.value;
+
+          // 检查 cellValue 是否是数字
+          if (cellValue is num && cellValue != 1 && cellValue != 2) {
+            sums[index] += cellValue.toDouble();
+            counts[index]++;
+          } else {
+            nonNumericContents[index].add(cellValue.toString());
+          }
         });
-
-        var docx =
-            await DocxTemplate.fromBytes(Uint8List.fromList(templateBytes));
-        Content c = Content();
-
-        // templateData是一个{G-header:表头值，G-content:内容值, H-header:表头值，H-content:内容值}的map
-        templateData.forEach((key, value) {
-          c.add(TextContent(key, value.toString()));
-        });
-
-        //   // 生成 Word 文档，根据传入的 Content 对象进行替换占位符
-        var generatedDocBuffer = await docx.generate(c);
-        if (generatedDocBuffer != null) {
-          var modifiableBuffer =
-              List<int>.from(generatedDocBuffer); // Create a modifiable list
-          var outputFilePath =
-              path.join(outputDir.path, 'result_${prefix}_${i + 1}.docx');
-          File(outputFilePath).writeAsBytesSync(modifiableBuffer);
-          print('Word 文件已成功生成: $outputFilePath');
-        } else {
-          print('生成 Word 文件时发生错误');
-        }
       }
+
+      // 计算平均数
+      List<dynamic> averagesOrContents = sums.asMap().entries.map((entry) {
+        int index = entry.key;
+        double sum = entry.value;
+        int count = counts[index];
+        return count > 0
+            ? double.parse((sum / count).toStringAsFixed(1))
+            : nonNumericContents[index].join('\n');
+      }).toList();
+      // .cast<double>();
+
+      var templateData = <String, dynamic>{};
+
+      headers.asMap().forEach((index, header) {
+        // 一个cell对象，包含了单元格的内容以及其他属性，如样式、对齐方式等。以下是对问题的详细解答：
+        // print(header.value.toString());
+        // print(data[index].toString());
+        var columnLetter = String.fromCharCode(71 + index);
+        templateData['${columnLetter}-header'] = header?.value?.toString();
+        templateData['${columnLetter}-content'] =
+            averagesOrContents[index].toString();
+      });
+      var docx =
+          await DocxTemplate.fromBytes(Uint8List.fromList(templateBytes));
+      Content c = Content();
+
+      // templateData是一个{G-header:表头值，G-content:内容值, H-header:表头值，H-content:内容值}的map
+      templateData.forEach((key, value) {
+        c.add(TextContent(key, value.toString()));
+      });
+
+      //   // 生成 Word 文档，根据传入的 Content 对象进行替换占位符
+      var generatedDocBuffer = await docx.generate(c);
+      if (generatedDocBuffer != null) {
+        var modifiableBuffer =
+            List<int>.from(generatedDocBuffer); // Create a modifiable list
+        var outputFilePath =
+            path.join(outputDir.path, 'result_${prefix}_平均数.docx');
+        File(outputFilePath).writeAsBytesSync(modifiableBuffer);
+        print('Word 文件已成功生成: $outputFilePath');
+      } else {
+        print('生成 Word 文件时发生错误');
+      }
+
+      // for (int i = 0; i < rows.length; i++) {
+      //   var data = rows[i];
+      // }
     } catch (e) {
       throw Exception('发生错误: $e');
     }
@@ -215,30 +245,34 @@ class _HomePageState extends State<HomePage> {
     var result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['xlsx'],
+        allowMultiple: true
     );
 
     if (result != null) {
-      var filePath = result.files.single.path;
-      if (filePath != null) {
-        try {
-          String fileName = path.basenameWithoutExtension(filePath);
-          print('filename: $fileName');
-          var excelData = await readExcel(filePath);
-          var templateContent = await rootBundle.load('assets/template.docx');
-          // buffer.asUint8List()不可修改。您可以通过将其转换为普通列表来修改它
-          var templateBytes = templateContent.buffer.asUint8List().toList();
-          await generateWordDocuments(excelData, templateBytes, fileName);
-          var outputFiles =
-              outputDir.listSync().map((file) => file.path).join('\n');
-          setState(() {
-            fileContent = outputFiles;
-          });
-
-          showMessageBox(context, '老板，已为您处理完成\n已经放到了桌面下的ayesha目录');
-        } catch (e, stackTrace) {
-          print('发生错误: $e');
-          showMessageBox(context, '发生错误: $e, $stackTrace');
+      // var filePath = result.files.single.path;
+      try {
+        var templateContent = await rootBundle.load('assets/template.docx');
+        // buffer.asUint8List()不可修改。您可以通过将其转换为普通列表来修改它
+        var templateBytes = templateContent.buffer.asUint8List().toList();
+        for (var file in result.files) {
+          var filePath = file.path;
+          if (filePath != null) {
+            String fileName = path.basenameWithoutExtension(filePath);
+            print('filename: $fileName');
+            var excelData = await readExcel(filePath);
+            await generateWordDocuments(excelData, templateBytes, fileName);
+          }
         }
+        var outputFiles =
+            outputDir.listSync().map((file) => file.path).join('\n');
+        setState(() {
+          fileContent = outputFiles;
+        });
+
+        showMessageBox(context, '老板，已为您处理完成\n已经放到了桌面下的ayesha目录');
+      } catch (e, stackTrace) {
+        print('发生错误: $e');
+        showMessageBox(context, '发生错误: $e, $stackTrace');
       }
     }
   }
@@ -282,7 +316,7 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Excel2PDF by jasonhuagn QQ315945659',
+          'Excel2PDF2.0 by jasonhuang QQ315945659',
           style: TextStyle(fontSize: 12),
         ),
         actions: [
