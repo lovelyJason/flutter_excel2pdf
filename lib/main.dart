@@ -1,14 +1,26 @@
 import 'dart:io';
+// import 'package:archive/archive.dart'
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:excel/excel.dart';
+import 'package:excel/excel.dart' as excelLib;
 import 'package:path/path.dart' as path;
 import 'package:docx_template/docx_template.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
+import 'package:desktop_window/desktop_window.dart' as window_size;
 
-void main() {
+// import 'package:flutter_dropzone/flutter_dropzone.dart';
+// import 'package:flutter_dropzone_platform_interface/flutter_dropzone_platform_interface.dart';
+
+import 'package:desktop_window/desktop_window.dart';
+
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+    await window_size.DesktopWindow.setWindowSize(Size(360, 300));
+    await window_size.DesktopWindow.setMinWindowSize(Size(360, 300));
+    await window_size.DesktopWindow.setMaxWindowSize(Size(360, 300));
+  }
   runApp(MyApp());
 }
 
@@ -29,6 +41,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   String fileContent = 'Excel Content: None';
   late Directory outputDir;
+  // late DropzoneViewController controller; // 添加这个变量
 
   @override
   void initState() {
@@ -36,18 +49,86 @@ class _HomePageState extends State<HomePage> {
     _initOutputDir();
   }
 
+  Future testGenerateDocxFromTemplate() async {
+    try {
+      // 从模板文件中创建 DocxTemplate 实例
+      final docx = await DocxTemplate.fromBytes(
+          await File('assets/template.docx').readAsBytes());
+
+      Content content = Content();
+      // 生成 Word 文档，根据传入的 Content 对象进行替换占位符
+      content
+        ..add(TextContent('docname', 'Simple docname'))
+        ..add(TextContent("passport", "Passport NE0323 4456673"))
+        ..add(TextContent('{{G-header}}', 'replacement1'))
+        ..add(TextContent('{H-header}', 'replacement2'));
+
+      final docGenerated = await docx.generate(content);
+      print('docGenerated的类型是：${docGenerated.runtimeType}');
+
+      // 获取存储目录
+      final directory = await getApplicationDocumentsDirectory();
+      // 生成路径
+      final outputFile =
+          File('${directory.path}/generated_docx_with_replaced_content.docx');
+
+      if (docGenerated != null) {
+        // 写入文件
+        print('生成成功: ${directory.path}');
+        await outputFile.writeAsBytes(docGenerated);
+      }
+    } catch (e, stackTrace) {
+      print('Exception: $e');
+      print('StackTrace: $stackTrace'); // 调用方法获取堆栈跟踪
+    }
+  }
+
+  Future<Directory> getDesktopPath() async {
+    Directory desktopDir;
+
+    if (Platform.isMacOS) {
+      desktopDir = Directory('/Users/${Platform.environment['USER']}/Desktop');
+    } else if (Platform.isWindows) {
+      String userProfile =
+          Platform.environment['USERPROFILE'] ?? ''; // 使用??提供默认空字符串
+      desktopDir = Directory(userProfile + '\\Desktop');
+    } else {
+      throw UnsupportedError('Unsupported platform for getting desktop path.');
+    }
+
+    // Optionally, you can check if the directory exists before returning it
+    // though the createSync in _initOutputDir will handle non-existent dirs
+    // if (await desktopDir.exists()) {
+    //   return desktopDir;
+    // } else {
+    //   throw StateError('Desktop directory not found.');
+    // }
+
+    return desktopDir;
+  }
+
   Future<void> _initOutputDir() async {
-    outputDir = await getApplicationDocumentsDirectory();
+    // outputDir = await getApplicationDocumentsDirectory();
+    // Try to get the desktop path for macOS and Windows
+    if (Platform.isMacOS || Platform.isWindows) {
+      // Custom logic since `path_provider` doesn't directly support desktop paths
+      outputDir = await getDesktopPath();
+    } else {
+      // For other platforms like mobile, use application documents directory
+      outputDir = await getApplicationDocumentsDirectory();
+    }
+
     final ayeshaDir = Directory(path.join(outputDir.path, 'ayesha'));
     if (!ayeshaDir.existsSync()) {
       ayeshaDir.createSync(recursive: true);
     }
     outputDir = ayeshaDir;
+    print('outputDir: $outputDir');
   }
 
   Future<List<List<dynamic>>> readExcel(String filePath) async {
     var fileBytes = File(filePath).readAsBytesSync();
-    var excel = Excel.decodeBytes(fileBytes);
+    var excel = excelLib.Excel.decodeBytes(fileBytes);
 
     List<List<dynamic>> rows = [];
     for (var table in excel.tables.keys) {
@@ -65,8 +146,10 @@ class _HomePageState extends State<HomePage> {
   Future<void> generateWordDocuments(
       List<List<dynamic>> excelData, List<int> templateBytes) async {
     try {
-      var headers = excelData[0].sublist(7);
-      var rows = excelData.sublist(1).map((row) => row.sublist(7)).toList();
+      // 获取表头行数据，，从索引6，第7列，G开始获取这一行中所有后续列的值。这意味着headers变量将包含第7列及其之后所有列的表头。
+      var headers = excelData[0].sublist(6);
+      // excelData.sublist(1)：从Excel数据的第2行（索引为1）开始，获取所有后续行的数据。这表示去掉第一行表头，保留实际数据行。
+      var rows = excelData.sublist(1).map((row) => row.sublist(6)).toList();
 
       for (int i = 0; i < rows.length; i++) {
         var data = rows[i];
@@ -82,10 +165,12 @@ class _HomePageState extends State<HomePage> {
             await DocxTemplate.fromBytes(Uint8List.fromList(templateBytes));
         Content c = Content();
 
+        // templateData是一个{G-header:表头值，G-content:内容值, H-header:表头值，H-content:内容值}的map
         templateData.forEach((key, value) {
           c.add(TextContent(key, value.toString()));
         });
 
+        //   // 生成 Word 文档，根据传入的 Content 对象进行替换占位符
         var generatedDocBuffer = await docx.generate(c);
         if (generatedDocBuffer != null) {
           var modifiableBuffer =
@@ -119,6 +204,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   void pickFile() async {
+    // testGenerateDocxFromTemplate();
+    // return;
     var result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['xlsx'],
@@ -140,9 +227,9 @@ class _HomePageState extends State<HomePage> {
           });
 
           showMessageBox(context, '老板，已为您处理完成\n已经放到了文档目录的ayesha目录');
-        } catch (e) {
+        } catch (e, stackTrace) {
           print('发生错误: $e');
-          showMessageBox(context, '发生错误: $e');
+          showMessageBox(context, '发生错误: $e, $stackTrace');
         }
       }
     }
@@ -152,7 +239,7 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Excel2PDF'),
+        title: Text('flutter_excel2pdf by jasonhuagn QQ315945659'),
       ),
       body: Center(
         child: Column(
@@ -160,15 +247,16 @@ class _HomePageState extends State<HomePage> {
           children: [
             ElevatedButton(
               onPressed: pickFile,
-              child: Text('选择Excel(支持拖拽excel进来)'),
+              child: Text('选择Excel(暂不支持拖拽excel)'),
             ),
             SizedBox(height: 20),
-            SingleChildScrollView(
+            Expanded(
+                child: SingleChildScrollView(
               child: Text(
                 fileContent,
                 style: TextStyle(fontSize: 16),
               ),
-            ),
+            ))
           ],
         ),
       ),

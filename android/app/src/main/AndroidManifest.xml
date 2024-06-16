@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.my_flutter_app">
+    package="com.example.flutter_excel2pdf">
    <application
-        android:label="my_flutter_app"
+        android:label="flutter_excel2pdf"
         android:icon="@mipmap/ic_launcher">
         <activity
             android:name=".MainActivity"

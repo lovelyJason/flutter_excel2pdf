@@ -1,4 +1,4 @@
-name: my_flutter_app
+name: flutter_excel2pdf
 description: A new Flutter project.
 
 # The following line prevents the package from being accidentally published to
@@ -31,10 +31,13 @@ dependencies:
   # created by jasonhuagn
   file_picker: ^8.0.5
   excel: ^2.0.0
-  archive: ^3.3.0
+  # archive: ^3.3.0
+  archive: 3.3.0
   path_provider: ^2.0.11
   docx_template: ^0.4.0
   desktop_window: ^0.4.0
+  flutter_dropzone_platform_interface: ^2.0.6
+  flutter_dropzone: ^4.0.1
 
 
 dev_dependencies:

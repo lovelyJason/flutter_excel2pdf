@@ -1,6 +1,6 @@
 {
-    "name": "my_flutter_app",
-    "short_name": "my_flutter_app",
+    "name": "flutter_excel2pdf",
+    "short_name": "flutter_excel2pdf",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
