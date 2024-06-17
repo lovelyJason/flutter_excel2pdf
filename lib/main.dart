@@ -12,8 +12,6 @@ import 'package:desktop_window/desktop_window.dart' as window_size;
 // import 'package:flutter_dropzone/flutter_dropzone.dart';
 // import 'package:flutter_dropzone_platform_interface/flutter_dropzone_platform_interface.dart';
 
-import 'package:desktop_window/desktop_window.dart';
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
