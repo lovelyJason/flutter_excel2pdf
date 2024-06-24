@@ -136,4 +136,4 @@ var result = await FilePicker.platform.pickFiles(
 
 这个库占位符不是通过{{}}或{}占位符来的，要在wps或者office word设置标签
 
-还有一个大坑就是，这个库依赖的是word文档的开发者工具，为元素设置标签，在wps里叫内容控件。然后，在wps里，mac版的没有开发者工具这一说，也就没办法编辑标签，只能用mac的office
+还有一个大坑就是，这个库依赖的是word文档的开发者工具，为元素设置标签，在wps里叫内容控件。然后，在wps里，mac版的没有开发者工具这一说，也就没办法编辑标签，mac版的office也没有这个功能。还是得自己造轮子吧
