@@ -83,6 +83,8 @@ flutter对于涉及到操作系统级别的访问的设计原则是尽可能跨�
 
 其实在运行flutter run -d macos时，也会自动执行pod install，但不保证不出问题，所以这些还是得懂（苹果平台真的很操蛋QAQ）
 
+不过本项目是在好几年前初始化的，那时候flutter还不成熟， 包括安卓里面的有些代码现在编译会报错，比如sdk version，以前写死的版本号，现在是取得 compileSdk = flutter.compileSdkVersion动态数据
+
 ### 对于苹果平台，如果pod install报错
 
 > Analyzing dependencies [!] Unable to find a target named `RunnerTests` in project `Runner.xcodeproj`, did find `Runner`.
